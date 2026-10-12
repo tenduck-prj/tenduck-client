@@ -54,7 +54,7 @@ export const LiveProcessViewer: React.FC<LiveProcessViewerProps> = React.memo(
           );
         case 'generating':
           return (
-            <span className="inline-flex items-center gap-1 rounded bg-lotte-red-light px-2 py-0.5 text-xs font-semibold text-lotte-red border border-lotte-red/30">
+            <span className="inline-flex items-center gap-1 rounded bg-lotte-gold-light px-2 py-0.5 text-xs font-semibold text-lotte-gold-dark border border-lotte-gold-border">
               <Terminal className="h-3 w-3" />
               토큰 생성 중
             </span>

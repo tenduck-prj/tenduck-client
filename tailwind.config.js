@@ -5,23 +5,28 @@ export default {
     extend: {
       colors: {
         lotte: {
+          // [Core Primary] 롯데백화점 샴페인 골드 (메인 색상)
+          gold: {
+            DEFAULT: '#C5A880',
+            hover: '#B5966D',
+            dark: '#8F7249',
+            light: '#FAF7F2',
+            tint: '#F3ECE2',
+            border: '#E8DEC8',
+          },
+          // [Secondary / Accent] 롯데 시그니처 레드 (보조 색상: 상태/알림/하이라이트)
           red: {
             DEFAULT: '#DA291C',
             hover: '#BD2014',
             light: '#FDF1F0',
             border: '#F9D4D1',
           },
-          gold: {
-            DEFAULT: '#C5A880',
-            dark: '#A68962',
-            light: '#F8F5F0',
-          },
-          dark: '#111111',
+          dark: '#121212',
           charcoal: '#1E1E1E',
           surface: '#FFFFFF',
-          background: '#F8F9FA',
-          border: '#E8EAED',
-          muted: '#666666',
+          background: '#F9F9FA',
+          border: '#E8E5DF',
+          muted: '#6B6864',
         },
       },
       fontFamily: {

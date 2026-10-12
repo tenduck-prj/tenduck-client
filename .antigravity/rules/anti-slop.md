@@ -9,7 +9,7 @@ AI 코딩 에이전트가 만든 전형적이고 조잡한 "AI Slop"을 원천 �
 
 1. **[R-01] No Generic Purple/Indigo Gradients (보라색 네온 그라데이션 절대 금지)**
    - `bg-gradient-to-r from-purple-500 to-indigo-600` 등 뻔한 AI 스타일 그라데이션 금지.
-   - 메인 시그니처 색상은 오직 롯데 레드(`lotte-red: #DA291C`), 포인트는 샴페인 골드(`lotte-gold: #C5A880`)를 사용합니다.
+   - 메인 코어 색상은 롯데백화점 샴페인 골드(`lotte-gold: #C5A880`), 보조 색상은 롯데 레드(`lotte-red: #DA291C`)를 사용합니다.
    
 2. **[R-02] No Artificial Sparkles or Decorative Clichés (가짜 AI 이모지 금지)**
    - 버튼, 헤딩, 카드 제목에 무의미한 `✨`, `🔮`, `🚀` 등의 이모지를 장식용으로 붙이지 마십시오.
@@ -32,11 +32,12 @@ AI 코딩 에이전트가 만든 전형적이고 조잡한 "AI Slop"을 원천 �
 ## Tier 2: Quality Locks (품질 기준)
 
 1. **[Q-01] WCAG AA 대비율 준수**
-   - 롯데 레드 배경(`lotte-red`) 위의 텍스트는 오직 `#FFFFFF`(White)만 허용합니다.
+   - 골드 배경(`lotte-gold`) 위의 텍스트는 딥 차콜(`#121212`) 또는 순백(`#FFFFFF`)으로 가독성을 확보합니다.
+   - 롯데 레드(`lotte-red`)는 라이브 스트리밍 상태, 에러 알림 등 보조 액센트로 절제하여 사용합니다.
    - 배경과 텍스트의 대비율은 최소 4.5:1 이상이어야 합니다.
 
 2. **[Q-02] 키보드 네비게이션 및 포커스 링**
-   - 모든 대화창, 프롬프트 전송 버튼, 어코디언 토글은 `focus-visible:ring-2 focus-visible:ring-lotte-red`를 명시합니다.
+   - 모든 대화창, 프롬프트 전송 버튼, 어코디언 토글은 `focus-visible:ring-2 focus-visible:ring-lotte-gold`를 명시합니다.
 
 3. **[Q-03] 실시간 WebSocket 렌더링 성능 최적화**
    - 초당 수십 개 토큰이 유입되는 스트리밍 환경에서 UI 스레드가 블로킹되지 않도록 `useTransition`, `useDeferredValue`, `useCallback`을 필수 적용합니다.
