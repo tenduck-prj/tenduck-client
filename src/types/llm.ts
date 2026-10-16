@@ -91,6 +91,21 @@ export interface Thread {
   };
 }
 
+// 7. 멀티턴 컨텍스트 전달용 대화 턴 모델
+export interface ConversationTurn {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp?: number;
+}
+
+export type LLMErrorCode =
+  | 'AUTH_FAILED'
+  | 'RATE_LIMIT_EXCEEDED'
+  | 'MODEL_TIMEOUT'
+  | 'CONTEXT_LENGTH_EXCEEDED'
+  | 'TOOL_EXECUTION_ERROR'
+  | 'INTERNAL_SERVER_ERROR';
+
 // ============================================================================
 // WebSocket 양방향 패킷 정의 (Client ↔ Server Packets)
 // ============================================================================
@@ -120,6 +135,8 @@ export type ClientPacket =
       timestamp: number;
       payload: {
         prompt: string;
+        history?: ConversationTurn[];
+        contextSummary?: string;
         model?: string;
         temperature?: number;
         maxTokens?: number;
@@ -220,14 +237,9 @@ export type ServerPacket =
       conversationId: string;
       timestamp: number;
       payload: {
-        code:
-          | 'AUTH_FAILED'
-          | 'RATE_LIMIT_EXCEEDED'
-          | 'MODEL_TIMEOUT'
-          | 'CONTEXT_LENGTH_EXCEEDED'
-          | 'TOOL_EXECUTION_ERROR'
-          | 'INTERNAL_SERVER_ERROR';
+        code: LLMErrorCode;
         message: string;
         retryable: boolean;
       };
     };
+

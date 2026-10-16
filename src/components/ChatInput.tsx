@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { Send, CornerDownLeft, Square } from 'lucide-react';
+import { PRESET_SCENARIOS } from '../mocks/mockScenarios';
 
 interface ChatInputProps {
   onSendMessage: (text: string) => void;
@@ -7,12 +8,6 @@ interface ChatInputProps {
   disabled?: boolean;
   isGenerating?: boolean;
 }
-
-const PRESET_QUERIES = [
-  '본점 에비뉴엘 명품관 층별 입점 브랜드 안내해줘',
-  'AVENUEL VIP 라운지 이용 자격 및 발레파킹 혜택',
-  '이번 주말 롯데상품권 사은행사 기준 알려줘',
-];
 
 export const ChatInput: React.FC<ChatInputProps> = React.memo(
   ({ onSendMessage, onCancel, disabled = false, isGenerating = false }) => {
@@ -53,20 +48,27 @@ export const ChatInput: React.FC<ChatInputProps> = React.memo(
     return (
       <div className="border-t border-lotte-border bg-lotte-surface p-4 sm:p-5">
         <div className="mx-auto max-w-4xl lg:max-w-5xl xl:max-w-6xl space-y-3">
-          {/* 사전 정의된 추천 질문 칩 */}
+          {/* 사전 정의된 시나리오 추천 칩 */}
           <div className="flex flex-wrap gap-2 items-center">
-            <span className="text-[11px] font-medium text-lotte-muted">추천 질문:</span>
-            {PRESET_QUERIES.map((query, idx) => (
-              <button
-                key={idx}
-                type="button"
-                disabled={disabled || isGenerating}
-                onClick={() => handleSelectPreset(query)}
-                className="rounded-full border border-lotte-border bg-lotte-background px-2.5 py-1 text-xs text-lotte-dark hover:border-lotte-gold/60 hover:bg-lotte-gold-light transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lotte-gold disabled:opacity-50"
-              >
-                {query}
-              </button>
-            ))}
+            <span className="text-[11px] font-medium text-lotte-muted">시나리오 테스트:</span>
+            {PRESET_SCENARIOS.map((scenario) => {
+              const isErrorSim = Boolean(scenario.simulateError);
+              return (
+                <button
+                  key={scenario.id}
+                  type="button"
+                  disabled={disabled || isGenerating}
+                  onClick={() => handleSelectPreset(scenario.presetPrompt)}
+                  className={`rounded-full border px-2.5 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 disabled:opacity-50 ${
+                    isErrorSim
+                      ? 'border-lotte-red/30 bg-lotte-red-light/50 text-lotte-red hover:border-lotte-red hover:bg-lotte-red-light focus-visible:ring-lotte-red'
+                      : 'border-lotte-border bg-lotte-background text-lotte-dark hover:border-lotte-gold/60 hover:bg-lotte-gold-light focus-visible:ring-lotte-gold'
+                  }`}
+                >
+                  {scenario.label}
+                </button>
+              );
+            })}
           </div>
 
           {/* 입력창 폼 */}

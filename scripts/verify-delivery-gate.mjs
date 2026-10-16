@@ -54,7 +54,7 @@ let violations = 0;
 const files = getAllFiles(SRC_DIR);
 
 // [Step 1] Anti-Slop 정적 검증
-console.log(`[Step 1/3] Scanning ${files.length} source files for Anti-Slop violations...`);
+console.log(`[Step 1/4] Scanning ${files.length} source files for Anti-Slop violations...`);
 
 for (const file of files) {
   const content = fs.readFileSync(file, 'utf8');
@@ -79,8 +79,34 @@ if (violations === 0) {
   console.error(`\n❌ Step 1 Failed: Found ${violations} violations. Please fix before shipping.`);
 }
 
-// [Step 2] Git 브랜치 전략 검증
-console.log('\n[Step 2/3] Checking Git Branching Model (main - release - develop - feature)...');
+// [Step 2] Harness Stage 1 (Specs) 문서 무결성 검증
+console.log('\n[Step 2/4] Verifying Harness Stage 1 Spec Documents (specs/)...');
+const REQUIRED_SPECS = [
+  'specs/DESIGN.md',
+  'specs/PRD_TEMPLATE.md',
+  'specs/ACCEPTANCE_CRITERIA.md',
+  'specs/BRANCHING_STRATEGY.md',
+  'specs/LLM_WEBSOCKET_CONTRACT.md',
+  'specs/THREAD_CONTEXT_SPEC.md',
+  'specs/DELIVERY_GATE_REPORT_TEMPLATE.md',
+];
+
+let missingSpecs = 0;
+for (const specRel of REQUIRED_SPECS) {
+  const specPath = path.resolve(process.cwd(), specRel);
+  if (!fs.existsSync(specPath)) {
+    console.error(`❌ Missing required spec/harness file: ${specRel}`);
+    missingSpecs++;
+  }
+}
+if (missingSpecs === 0) {
+  console.log(`✅ Step 2 Passed: All ${REQUIRED_SPECS.length} Harness & Spec files verified.`);
+} else {
+  violations += missingSpecs;
+}
+
+// [Step 3] Git 브랜치 전략 검증
+console.log('\n[Step 3/4] Checking Git Branching Model (main - release - develop - feature)...');
 try {
   const currentBranch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim();
   const allBranches = execSync('git branch', { encoding: 'utf8' });
@@ -97,21 +123,21 @@ try {
   }
 
   if (isCompliant) {
-    console.log(`✅ Step 2 Passed: Branch governance verified. (Current: ${currentBranch})`);
+    console.log(`✅ Step 3 Passed: Branch governance verified. (Current: ${currentBranch})`);
   } else {
-    console.warn(`⚠️ Step 2 Note: Branch '${currentBranch}' does not match standard prefixes (feature/*, release/*, develop).`);
+    console.warn(`⚠️ Step 3 Note: Branch '${currentBranch}' does not match standard prefixes (feature/*, release/*, develop).`);
   }
 } catch (err) {
-  console.warn('⚠️ Step 2 Skipped: Git environment not accessible or not a git repo.');
+  console.warn('⚠️ Step 3 Skipped: Git environment not accessible or not a git repo.');
 }
 
-// [Step 3] TypeScript Typecheck
-console.log('\n[Step 3/3] Running TypeScript Typecheck (tsc -b)...');
+// [Step 4] TypeScript Typecheck
+console.log('\n[Step 4/4] Running TypeScript Typecheck (tsc -b)...');
 try {
   execSync('npx tsc -b', { stdio: 'inherit' });
-  console.log('✅ Step 3 Passed: TypeScript compilation succeeded with 0 errors.');
+  console.log('✅ Step 4 Passed: TypeScript compilation succeeded with 0 errors.');
 } catch {
-  console.error('❌ Step 3 Failed: TypeScript compilation failed.');
+  console.error('❌ Step 4 Failed: TypeScript compilation failed.');
   process.exit(1);
 }
 

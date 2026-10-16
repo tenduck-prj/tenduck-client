@@ -92,7 +92,7 @@ sequenceDiagram
 
 ---
 
-### [Step 2] 프롬프트 제출 (Prompt Submission)
+### [Step 2] 프롬프트 제출 (Prompt Submission - 멀티턴 히스토리 포함)
 
 #### 클라이언트 발송: `prompt.submit`
 ```json
@@ -107,7 +107,19 @@ sequenceDiagram
     "temperature": 0.7,
     "maxTokens": 2048,
     "showThinking": true,
-    "allowedTools": ["fetch_avenuel_directory", "check_vip_lounge_status"]
+    "allowedTools": ["fetch_avenuel_directory", "check_vip_lounge_status"],
+    "history": [
+      {
+        "role": "user",
+        "content": "본점 영업시간 알려줘",
+        "timestamp": 1728729950000
+      },
+      {
+        "role": "assistant",
+        "content": "롯데백화점 본점 정상 영업시간은 평일 10:30~20:00, 주말 10:30~20:30입니다.",
+        "timestamp": 1728729952000
+      }
+    ]
   }
 }
 ```

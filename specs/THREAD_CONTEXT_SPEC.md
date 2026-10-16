@@ -59,4 +59,18 @@ export interface Thread {
 
 - **`useTransition`**: 스레드 전환 클릭 시 메시지가 수십 개 누적된 상태에서도 사이드바 클릭 즉각 반응 (0ms Interaction Delay).
 - **`useMemo`**: 스레드 정렬(최신순) 및 활성 스레드 검색 연산 메모이제이션.
-- **스트리밍 완료 즉시 영속화**: AI 토큰 스트리밍이 끝나면 `onComplete` 이벤트에서 활성 스레드의 `messages` 배열에 원자적(Atomic) 업데이트.
+- **스트리밍 완료 즉시 영속화**: AI 토큰 스트리밍이 끝나면 `onComplete` 이벤트에서 요청이 시작된 대상 스레드(`targetThreadId`)의 `messages` 배열에 원자적(Atomic) 업데이트.
+
+---
+
+## 5. 멀티턴 컨텍스트 바인딩 및 스레드 격리 규칙 (Isolation Guarantee)
+
+1. **멀티턴 히스토리 주입 (`history` payload)**:
+   - 프롬프트 전송(`prompt.submit`) 시 현재 활성 스레드(`activeThreadId`)를 `conversationId`로 매핑합니다.
+   - 최근 대화 턴(최대 10턴)을 `ConversationTurn[]` 형태로 함께 직렬화하여 백엔드 LLM이 이전 문맥을 이해할 수 있도록 보장합니다.
+2. **스레드 전환 시 스트리밍 격리 (`streamingThreadId`)**:
+   - A 스레드에서 답변 생성이 진행되는 도중 사용자가 B 스레드로 이동하더라도, A 스레드의 스트리밍 버블이 B 스레드 화면을 침범하지 않습니다.
+   - 스트리밍이 완료(`stream.complete`)되면 현재 보고 있는 화면과 무관하게 원래 요청을 보낸 A 스레드(`targetThreadId`)에 정확히 귀속 저장됩니다.
+3. **로컬 스토리지 용량 보호 (Quota Protection)**:
+   - 스레드가 최대 30개를 초과하거나 단일 스레드 메시지가 과도하게 누적될 경우에도 안전하게 직렬화되며, 전체 대화 내보내기(JSON)/초기화 기능을 지원합니다.
+

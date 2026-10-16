@@ -22,10 +22,11 @@ interface LiveProcessViewerProps {
   thoughts: ThoughtStep[];
   toolCalls: ToolCallEvent[];
   metrics: LiveStreamMetrics | null;
+  wsLatencyMs?: number | null;
 }
 
 export const LiveProcessViewer: React.FC<LiveProcessViewerProps> = React.memo(
-  ({ currentStage, stageMessage, thoughts, toolCalls, metrics }) => {
+  ({ currentStage, stageMessage, thoughts, toolCalls, metrics, wsLatencyMs }) => {
     const [isThoughtOpen, setIsThoughtOpen] = useState(true);
     const [isToolsOpen, setIsToolsOpen] = useState(true);
 
@@ -90,8 +91,14 @@ export const LiveProcessViewer: React.FC<LiveProcessViewerProps> = React.memo(
 
         {/* 상태 메시지 배너 */}
         {stageMessage && (
-          <div className="border-b border-lotte-border/60 bg-lotte-gold-light/40 px-4 py-2 text-xs text-lotte-gold-dark font-medium flex items-center space-x-1.5">
-            <Clock className="h-3 w-3 text-lotte-gold-dark shrink-0" />
+          <div
+            className={`border-b px-4 py-2 text-xs font-medium flex items-center space-x-1.5 ${
+              currentStage === 'error'
+                ? 'border-red-200 bg-red-50 text-lotte-red'
+                : 'border-lotte-border/60 bg-lotte-gold-light/40 text-lotte-gold-dark'
+            }`}
+          >
+            <Clock className="h-3 w-3 shrink-0" />
             <span className="truncate">{stageMessage}</span>
           </div>
         )}
@@ -164,19 +171,32 @@ export const LiveProcessViewer: React.FC<LiveProcessViewerProps> = React.memo(
                   toolCalls.map((tool) => (
                     <div
                       key={tool.toolId}
-                      className="rounded border border-blue-100 bg-blue-50/50 p-2 text-[11px]"
+                      className={`rounded border p-2 text-[11px] ${
+                        tool.status === 'failure'
+                          ? 'border-red-200 bg-red-50/70'
+                          : 'border-blue-100 bg-blue-50/50'
+                      }`}
                     >
                       <div className="flex items-center justify-between font-bold text-blue-900 mb-1">
-                        <span>{tool.toolName}</span>
-                        <span
-                          className={`px-1.5 py-0.2 rounded text-[10px] ${
-                            tool.status === 'success'
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : 'bg-amber-100 text-amber-800'
-                          }`}
-                        >
-                          {tool.status}
-                        </span>
+                        <span className="truncate">{tool.toolName}</span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {tool.executionMs !== undefined && (
+                            <span className="text-[10px] font-normal text-gray-500">
+                              {tool.executionMs}ms
+                            </span>
+                          )}
+                          <span
+                            className={`px-1.5 py-0.2 rounded text-[10px] ${
+                              tool.status === 'success'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : tool.status === 'failure'
+                                ? 'bg-red-100 text-red-800'
+                                : 'bg-amber-100 text-amber-800'
+                            }`}
+                          >
+                            {tool.status}
+                          </span>
+                        </div>
                       </div>
                       <div className="text-gray-600 truncate mb-1">
                         Args: {JSON.stringify(tool.arguments)}
@@ -184,6 +204,11 @@ export const LiveProcessViewer: React.FC<LiveProcessViewerProps> = React.memo(
                       {tool.result && (
                         <div className="text-emerald-800 border-t border-blue-100/60 pt-1">
                           결과: {tool.result}
+                        </div>
+                      )}
+                      {tool.error && (
+                        <div className="text-red-700 border-t border-red-200/60 pt-1">
+                          오류: {tool.error}
                         </div>
                       )}
                     </div>
@@ -202,13 +227,20 @@ export const LiveProcessViewer: React.FC<LiveProcessViewerProps> = React.memo(
               <span className="font-medium text-lotte-dark">Live Metrics:</span>
             </div>
             {metrics ? (
-              <div className="flex items-center space-x-3 font-mono">
+              <div className="flex items-center space-x-2.5 font-mono">
                 <span>{metrics.totalTokens} tok</span>
                 <span>{metrics.tokensPerSec} tok/s</span>
                 <span>{metrics.elapsedMs} ms</span>
+                {wsLatencyMs !== null && wsLatencyMs !== undefined && (
+                  <span className="text-emerald-700">RTT {wsLatencyMs}ms</span>
+                )}
               </div>
             ) : (
-              <span className="font-mono">대기 중</span>
+              <span className="font-mono">
+                {wsLatencyMs !== null && wsLatencyMs !== undefined
+                  ? `대기 중 (RTT ${wsLatencyMs}ms)`
+                  : '대기 중'}
+              </span>
             )}
           </div>
         </div>

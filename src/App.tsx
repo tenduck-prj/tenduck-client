@@ -7,6 +7,7 @@ import { ChatInput } from './components/ChatInput';
 import { useWebSocketLLM } from './hooks/useWebSocketLLM';
 import { useOptimizedStreaming } from './hooks/useOptimizedStreaming';
 import { useThreadManager } from './hooks/useThreadManager';
+import { ConversationTurn } from './types/llm';
 
 export default function App() {
   const [mockMode, setMockMode] = useState(true);
@@ -22,10 +23,11 @@ export default function App() {
     switchThread,
     deleteThread,
     updateThreadTitle,
+    addMessageToThread,
     addMessageToActiveThread,
   } = useThreadManager();
 
-  // 2. WebSocket 및 LLM 통신 훅
+  // 2. WebSocket 및 LLM 통신 훅 (스레드 격리 및 멀티턴 컨텍스트 지원)
   const {
     isConnected,
     isConnecting,
@@ -35,19 +37,31 @@ export default function App() {
     toolCalls,
     streamingText,
     metrics,
+    error,
+    isRetryable,
+    streamingThreadId,
+    wsLatencyMs,
     sendPrompt,
+    retryLastPrompt,
     cancelPrompt,
     reconnect,
   } = useWebSocketLLM({
     mockMode,
-    onComplete: ({ text, metrics, thoughts: finalThoughts, toolCalls: finalTools }) => {
-      // LLM 응답 스트리밍 완료 시 활성 스레드에 최종 저장
-      addMessageToActiveThread({
+    onComplete: ({
+      conversationId,
+      text,
+      metrics: finalMetrics,
+      thoughts: finalThoughts,
+      toolCalls: finalTools,
+    }) => {
+      // 스트리밍 중 사용자가 다른 스레드로 전환했더라도 요청이 시작된 원본 스레드에 정확히 저장
+      const targetId = conversationId || activeThreadId;
+      addMessageToThread(targetId, {
         id: `msg_ai_${Date.now()}`,
         role: 'assistant',
         content: text,
         timestamp: Date.now(),
-        metrics: metrics || undefined,
+        metrics: finalMetrics || undefined,
         thoughts: finalThoughts.length > 0 ? finalThoughts : undefined,
         toolCalls: finalTools.length > 0 ? finalTools : undefined,
       });
@@ -61,9 +75,16 @@ export default function App() {
     toolCalls,
   });
 
-  // 4. 사용자 메시지 발송 핸들러
+  // 4. 사용자 메시지 발송 핸들러 (이전 대화 맥락 history를 함께 전달)
   const handleSendMessage = useCallback(
     (promptText: string) => {
+      // 현재 활성 스레드의 이전 대화 내역을 멀티턴 컨텍스트로 변환
+      const history: ConversationTurn[] = activeMessages.map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+        timestamp: msg.timestamp,
+      }));
+
       // 1) 활성 스레드에 사용자 메시지 저장
       addMessageToActiveThread({
         id: `msg_user_${Date.now()}`,
@@ -72,10 +93,10 @@ export default function App() {
         timestamp: Date.now(),
       });
 
-      // 2) 웹소켓으로 프롬프트 전송
-      sendPrompt(promptText);
+      // 2) 웹소켓(또는 멀티 시나리오 목업 엔진)으로 스레드 ID 및 컨텍스트 히스토리 전송
+      sendPrompt(promptText, activeThreadId, history);
     },
-    [addMessageToActiveThread, sendPrompt]
+    [activeMessages, activeThreadId, addMessageToActiveThread, sendPrompt]
   );
 
   const isGenerating =
@@ -83,6 +104,12 @@ export default function App() {
     currentStage === 'reasoning' ||
     currentStage === 'tool_calling' ||
     currentStage === 'generating';
+
+  // 현재 보고 있는 스레드가 스트리밍 중인 스레드인지 판별 (스레드 격리 보장)
+  const isCurrentThreadStreaming =
+    isGenerating && (!streamingThreadId || streamingThreadId === activeThreadId);
+  const currentThreadError =
+    !streamingThreadId || streamingThreadId === activeThreadId ? error : null;
 
   return (
     <div className="flex h-screen flex-col bg-lotte-background font-sans text-lotte-dark selection:bg-lotte-gold/20 selection:text-lotte-gold-dark">
@@ -113,16 +140,19 @@ export default function App() {
           onUpdateTitle={updateThreadTitle}
         />
 
-        {/* 2. 중앙: 활성 스레드의 실시간 대화창 (인라인 생각/도구 호출 포함) */}
+        {/* 2. 중앙: 활성 스레드의 실시간 대화창 (인라인 생각/도구 호출 및 에러 복구 포함) */}
         <section className="flex flex-1 flex-col rounded-lg border border-lotte-border bg-lotte-surface shadow-2xs overflow-hidden min-w-0">
           <MessageList
             messages={activeMessages}
-            streamingText={deferredText}
-            isStreaming={isGenerating}
+            streamingText={isCurrentThreadStreaming ? deferredText : ''}
+            isStreaming={isCurrentThreadStreaming}
             currentStage={currentStage}
             stageMessage={stageMessage}
             liveThoughts={thoughts}
             liveToolCalls={toolCalls}
+            error={currentThreadError}
+            isRetryable={isRetryable}
+            onRetry={retryLastPrompt}
             onCopy={copyToClipboard}
           />
           <ChatInput
@@ -142,6 +172,7 @@ export default function App() {
               thoughts={thoughts}
               toolCalls={toolCalls}
               metrics={metrics}
+              wsLatencyMs={wsLatencyMs}
             />
           </section>
         )}

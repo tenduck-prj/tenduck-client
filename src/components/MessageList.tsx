@@ -9,6 +9,8 @@ import {
   ChevronDown,
   ChevronRight,
   Loader2,
+  AlertTriangle,
+  RotateCcw,
 } from 'lucide-react';
 import { ChatMessage, AIProcessingStage, ThoughtStep, ToolCallEvent } from '../types/llm';
 import { MarkdownRenderer } from './MarkdownRenderer';
@@ -21,6 +23,9 @@ interface MessageListProps {
   stageMessage?: string;
   liveThoughts?: ThoughtStep[];
   liveToolCalls?: ToolCallEvent[];
+  error?: string | null;
+  isRetryable?: boolean;
+  onRetry?: () => void;
   onCopy: (text: string) => Promise<boolean>;
 }
 
@@ -33,6 +38,9 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
     stageMessage = '',
     liveThoughts = [],
     liveToolCalls = [],
+    error = null,
+    isRetryable = false,
+    onRetry,
     onCopy,
   }) => {
     const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -43,7 +51,7 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
     // 새 메시지 및 스트리밍 시 스크롤 자동 이동
     useEffect(() => {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages, streamingText, isStreaming]);
+    }, [messages, streamingText, isStreaming, error]);
 
     const handleCopy = async (id: string, text: string) => {
       const ok = await onCopy(text);
@@ -59,7 +67,7 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
 
     return (
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 sm:px-6">
-        {messages.length === 0 && !isStreaming && (
+        {messages.length === 0 && !isStreaming && !error && (
           <div className="flex h-full flex-col items-center justify-center text-center p-8">
             <div className="h-12 w-12 rounded-full bg-lotte-gold-light flex items-center justify-center mb-4 text-lotte-gold-dark border border-lotte-gold-border">
               <Bot className="h-6 w-6" />
@@ -117,7 +125,9 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
                     >
                       <div className="flex items-center gap-1.5">
                         <Brain className="h-3 w-3 text-lotte-gold-dark" />
-                        <span>사고 과정 및 도구 호출 기록 ({msg.thoughts?.length || 0}건)</span>
+                        <span>
+                          사고 과정 ({msg.thoughts?.length || 0}건) · 도구 호출 ({msg.toolCalls?.length || 0}건)
+                        </span>
                       </div>
                       {isThoughtExpanded ? (
                         <ChevronDown className="h-3 w-3" />
@@ -134,8 +144,16 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
                           </div>
                         ))}
                         {msg.toolCalls?.map((tool, idx) => (
-                          <div key={idx} className="rounded bg-blue-50 border border-blue-100 p-1.5 text-blue-900">
-                            <span className="font-bold">[{tool.toolName}]</span> {tool.result}
+                          <div
+                            key={idx}
+                            className={`rounded border p-1.5 ${
+                              tool.status === 'failure'
+                                ? 'bg-red-50 border-red-200 text-red-900'
+                                : 'bg-blue-50 border-blue-100 text-blue-900'
+                            }`}
+                          >
+                            <span className="font-bold">[{tool.toolName}]</span>{' '}
+                            {tool.result || tool.error}
                           </div>
                         ))}
                       </div>
@@ -215,13 +233,29 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
                       ))
                     )}
                     {liveToolCalls.map((tool) => (
-                      <div key={tool.toolId} className="rounded bg-blue-50 border border-blue-100 p-2 text-blue-900">
+                      <div
+                        key={tool.toolId}
+                        className={`rounded border p-2 ${
+                          tool.status === 'failure'
+                            ? 'bg-red-50 border-red-200 text-red-900'
+                            : 'bg-blue-50 border-blue-100 text-blue-900'
+                        }`}
+                      >
                         <div className="flex items-center gap-1.5 font-bold">
                           <Wrench className="h-3 w-3" />
                           <span>{tool.toolName}</span>
-                          <span className="text-[10px] bg-blue-200/60 text-blue-800 px-1 rounded">{tool.status}</span>
+                          <span
+                            className={`text-[10px] px-1 rounded ${
+                              tool.status === 'failure'
+                                ? 'bg-red-200/70 text-red-800'
+                                : 'bg-blue-200/60 text-blue-800'
+                            }`}
+                          >
+                            {tool.status}
+                          </span>
                         </div>
                         {tool.result && <div className="mt-1 text-emerald-800">결과: {tool.result}</div>}
+                        {tool.error && <div className="mt-1 text-red-700">오류: {tool.error}</div>}
                       </div>
                     ))}
                   </div>
@@ -240,6 +274,34 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
                   <span>{stageMessage || '답변 작성을 시작하고 있습니다...'}</span>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* 스트림 오류 및 자동 복구(재시도) 배너 */}
+        {error && !isStreaming && (
+          <div className="flex items-start space-x-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-lotte-red text-white text-xs font-bold shadow-2xs">
+              !
+            </div>
+            <div className="max-w-2xl flex-1 rounded-lg border border-lotte-red/40 bg-red-50/70 p-4 text-xs text-lotte-dark shadow-2xs space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 font-bold text-lotte-red">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <span>응답 처리 중 오류가 발생했습니다</span>
+                </div>
+                {isRetryable && onRetry && (
+                  <button
+                    type="button"
+                    onClick={onRetry}
+                    className="inline-flex items-center gap-1 rounded bg-lotte-red px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-lotte-red-hover transition-colors shadow-2xs"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    <span>다시 시도 (복구)</span>
+                  </button>
+                )}
+              </div>
+              <p className="text-gray-700 leading-relaxed">{error}</p>
             </div>
           </div>
         )}
